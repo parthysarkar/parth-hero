@@ -41,16 +41,30 @@
   var W=1920,H=1080, CROP=[552,50,1371,997], N=54, CENTER=27;
   var stage=document.getElementById('stage'), cv=document.getElementById('cv'), ctx=cv.getContext('2d');
   var cw=CROP[2]-CROP[0], ch=CROP[3]-CROP[1];
+  var allLogos=[], TOPMAX=50;
   function layout(){
     var vw=innerWidth, vh=innerHeight, ar=vw/vh, w, h, x, y;
     var wide=ar>2.3, amb=document.getElementById('amb');
     stage.classList.toggle('wide',wide); amb.style.display=wide?'block':'none';
-    if(wide){ h=vh*1.28; w=h*16/9; x=(vw-w)/2; y=0; }
-    else if(ar>=16/9){ w=vw; h=vw*9/16; x=0; y=0; }
-    else if(ar>=1.41){ h=vh; w=vh*16/9; x=(vw-w)/2; y=0; }
-    else { w=vw; h=vw*9/16; x=0; y=Math.max(0,(vh-h)/2); }
+    if(wide){ h=vh*1.1; w=h*16/9; x=(vw-w)/2; }
+    else if(ar>=16/9){ w=vw; h=vw*9/16; x=0; }
+    else if(ar>=1.41){ h=vh; w=vh*16/9; x=(vw-w)/2; }
+    else { w=vw; h=vw*9/16; x=0; }
+    var excess=h-vh;
+    if(excess>0) y=-Math.min(excess, TOPMAX/H*h); else y=-excess/2;
     stage.style.width=w+'px'; stage.style.height=h+'px'; stage.style.left=x+'px'; stage.style.top=y+'px';
+    var vt=Math.max(0,-y/h*H), vb=Math.min(H,(vh-y)/h*H);
+    placeLogos(vt,vb);
     return w;
+  }
+  function placeLogos(vt,vb){
+    if(!allLogos.length) return;
+    var Y0=73, Y1=687, A=Math.max(Y0,vt+58), B=Math.min(Y1,vb-95);
+    if(B<A+300) B=A+300;
+    allLogos.forEach(function(o){
+      var y=A+(o.by-Y0)*(B-A)/(Y1-Y0);
+      o.el.style.left=(o.bx/W*100)+'%'; o.el.style.top=(y/H*100)+'%';
+    });
   }
   var stageW=layout(); window.addEventListener('resize',layout);
   var HI=(stageW*(window.devicePixelRatio||1))>2400, SC=HI?2:1, DIR=HI?'f2/':'f/';
@@ -73,14 +87,14 @@
     return list.map(function(it,i){
       var R=it[2], cy=it[4]||HY, a=it[3]*Math.PI/180, x=HX+side*R*Math.cos(a), y=cy+R*Math.sin(a);
       var el=document.createElement('div'); el.className='logo';
-      el.style.left=(x/W*100)+'%'; el.style.top=(y/H*100)+'%';
       el.innerHTML='<div class="chip"><img alt="" src="logos/'+it[0]+(it[0]==='zbrush'?'.png':'.svg')+'"></div><div class="name">'+it[1]+'</div>';
       stage.appendChild(el);
       var dx=HX-x, dy=HY-y, d=Math.hypot(dx,dy);
-      return {el:el, ux:dx/d, uy:dy/d};
+      var o={el:el, ux:dx/d, uy:dy/d, bx:x, by:y}; allLogos.push(o); return o;
     });
   }
   var leftSet=makeSet(LEFT,-1), rightSet=makeSet(RIGHT,1);
+  layout();
 
   var cur=CENTER, target=CENTER, shown=-1, lastMove=0, moved=false;
   var canHover=window.matchMedia('(hover: hover)').matches;
