@@ -6,8 +6,10 @@
 <title>Parth Sarkar – Look-around hero (test)</title>
 <style>
   html,body{margin:0;height:100%;background:#000;overflow:hidden}
-  body{display:flex;align-items:center;justify-content:center;font-family:"Helvetica Neue",Arial,sans-serif}
-  .stage{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9;container-type:inline-size;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  body{position:relative;font-family:"Helvetica Neue",Arial,sans-serif}
+  .stage{position:absolute;left:0;top:0;width:100vw;height:56.25vw;container-type:inline-size;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  .amb{position:absolute;inset:-60px;background:#000 url(bg.jpg) center/cover;filter:blur(40px) brightness(.55);display:none}
+  .stage.wide{-webkit-mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent)}
   .bg{position:absolute;inset:0;width:100%;height:100%;display:block}
   canvas{position:absolute;display:block;
     -webkit-mask-image:linear-gradient(to right,transparent,#000 5%,#000 95%,transparent),linear-gradient(to bottom,transparent,#000 4%,#000 96%,transparent);
@@ -22,23 +24,36 @@
   .chip img{width:56%;height:56%;object-fit:contain}
   .name{position:absolute;top:calc(100% + .55cqw);left:50%;transform:translateX(-50%);white-space:nowrap;
     color:rgba(255,255,255,.85);font-size:max(10px,.95cqw);letter-spacing:.02em}
-  .hint{position:absolute;left:50%;bottom:1.6cqw;transform:translateX(-50%);color:rgba(255,255,255,.75);
-    font-size:max(11px,.9cqw);background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);
-    padding:.45cqw 1.1cqw;border-radius:2cqw;transition:opacity .8s}
+  .hint{position:absolute;z-index:5;left:50%;bottom:16px;transform:translateX(-50%);color:rgba(255,255,255,.75);
+    font-size:13px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);
+    padding:6px 14px;border-radius:20px;transition:opacity .8s}
 </style>
 </head>
 <body>
+<div class="amb" id="amb"></div>
 <div class="stage" id="stage">
   <img class="bg" id="bgimg" src="bg.jpg" alt="Parth Sarkar, 3D character at his desk">
   <canvas id="cv"></canvas>
-  <div class="hint" id="hint">Move your cursor left and right</div>
 </div>
+<div class="hint" id="hint">Move your cursor left and right</div>
 <script>
 (function(){
   var W=1920,H=1080, CROP=[552,50,1371,997], N=54, CENTER=27;
   var stage=document.getElementById('stage'), cv=document.getElementById('cv'), ctx=cv.getContext('2d');
   var cw=CROP[2]-CROP[0], ch=CROP[3]-CROP[1];
-  var HI=(Math.min(innerWidth,innerHeight*16/9)*(window.devicePixelRatio||1))>2400, SC=HI?2:1, DIR=HI?'f2/':'f/';
+  function layout(){
+    var vw=innerWidth, vh=innerHeight, ar=vw/vh, w, h, x, y;
+    var wide=ar>2.3, amb=document.getElementById('amb');
+    stage.classList.toggle('wide',wide); amb.style.display=wide?'block':'none';
+    if(wide){ h=vh*1.28; w=h*16/9; x=(vw-w)/2; y=0; }
+    else if(ar>=16/9){ w=vw; h=vw*9/16; x=0; y=0; }
+    else if(ar>=1.41){ h=vh; w=vh*16/9; x=(vw-w)/2; y=0; }
+    else { w=vw; h=vw*9/16; x=0; y=Math.max(0,(vh-h)/2); }
+    stage.style.width=w+'px'; stage.style.height=h+'px'; stage.style.left=x+'px'; stage.style.top=y+'px';
+    return w;
+  }
+  var stageW=layout(); window.addEventListener('resize',layout);
+  var HI=(stageW*(window.devicePixelRatio||1))>2400, SC=HI?2:1, DIR=HI?'f2/':'f/';
   cv.width=cw*SC; cv.height=ch*SC;
   cv.style.left=(CROP[0]/W*100)+'%'; cv.style.top=(CROP[1]/H*100)+'%';
   cv.style.width=(cw/W*100)+'%'; cv.style.height=(ch/H*100)+'%';
