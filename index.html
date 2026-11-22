@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parth Sarkar – Look-around hero (test)</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center;font-family:"Helvetica Neue",Arial,sans-serif}
+  .stage{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9;container-type:inline-size;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  .bg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  canvas{position:absolute;display:block;
+    -webkit-mask-image:linear-gradient(to right,transparent,#000 5%,#000 95%,transparent),linear-gradient(to bottom,transparent,#000 4%,#000 96%,transparent);
+    -webkit-mask-composite:source-in;
+    mask-image:linear-gradient(to right,transparent,#000 5%,#000 95%,transparent),linear-gradient(to bottom,transparent,#000 4%,#000 96%,transparent);
+    mask-composite:intersect}
+  .logo{position:absolute;width:5.2cqw;transform:translate(-50%,-50%);opacity:0;pointer-events:none;will-change:transform,opacity}
+  .chip{width:5.2cqw;height:5.2cqw;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);
+    box-shadow:0 0 1.6cqw rgba(170,120,255,.25),inset 0 0 .8cqw rgba(255,255,255,.06);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  .chip img{width:56%;height:56%;object-fit:contain}
+  .name{position:absolute;top:calc(100% + .55cqw);left:50%;transform:translateX(-50%);white-space:nowrap;
+    color:rgba(255,255,255,.85);font-size:max(10px,.95cqw);letter-spacing:.02em}
+  .hint{position:absolute;left:50%;bottom:1.6cqw;transform:translateX(-50%);color:rgba(255,255,255,.75);
+    font-size:max(11px,.9cqw);background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);
+    padding:.45cqw 1.1cqw;border-radius:2cqw;transition:opacity .8s}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <img class="bg" id="bgimg" src="bg.jpg" alt="Parth Sarkar, 3D character at his desk">
+  <canvas id="cv"></canvas>
+  <div class="hint" id="hint">Move your cursor left and right</div>
+</div>
+<script>
+(function(){
+  var W=1920,H=1080, CROP=[552,50,1371,997], N=54, CENTER=27;
+  var stage=document.getElementById('stage'), cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var cw=CROP[2]-CROP[0], ch=CROP[3]-CROP[1];
+  var HI=(Math.min(innerWidth,innerHeight*16/9)*(window.devicePixelRatio||1))>2400, SC=HI?2:1, DIR=HI?'f2/':'f/';
+  cv.width=cw*SC; cv.height=ch*SC;
+  cv.style.left=(CROP[0]/W*100)+'%'; cv.style.top=(CROP[1]/H*100)+'%';
+  cv.style.width=(cw/W*100)+'%'; cv.style.height=(ch/H*100)+'%';
+
+  if(HI) document.getElementById('bgimg').src='bg2.jpg';
+  var frames=[], loaded=[];
+  for(var i=0;i<N;i++){(function(k){
+    var im=new Image(); im.onload=function(){loaded[k]=true; if(k===CENTER) draw(CENTER,true);};
+    im.src=DIR+String(k).padStart(3,'0')+'.webp'; frames[k]=im;})(i);}
+
+  var HX=962, HY=355;
+  var LEFT=[
+    ['maya','Maya',470,-33,380],['unreal','Unreal Engine',470,-11,380],['blender','Blender',470,11,380],['zbrush','ZBrush',470,33,380],
+    ['substance','Substance Painter',700,-26,380],['photoshop','Photoshop',700,-13,380],['premiere','Premiere Pro',700,0,380],['aftereffects','After Effects',700,13,380],['davinci','DaVinci Resolve',700,26,380]];
+  var RIGHT=[['claude','Claude',480,-36],['github','GitHub',480,-12],['windows','Windows',480,12],['apple','macOS',480,36]];
+  function makeSet(list,side){
+    return list.map(function(it,i){
+      var R=it[2], cy=it[4]||HY, a=it[3]*Math.PI/180, x=HX+side*R*Math.cos(a), y=cy+R*Math.sin(a);
+      var el=document.createElement('div'); el.className='logo';
+      el.style.left=(x/W*100)+'%'; el.style.top=(y/H*100)+'%';
+      el.innerHTML='<div class="chip"><img alt="" src="logos/'+it[0]+(it[0]==='zbrush'?'.png':'.svg')+'"></div><div class="name">'+it[1]+'</div>';
+      stage.appendChild(el);
+      var dx=HX-x, dy=HY-y, d=Math.hypot(dx,dy);
+      return {el:el, ux:dx/d, uy:dy/d};
+    });
+  }
+  var leftSet=makeSet(LEFT,-1), rightSet=makeSet(RIGHT,1);
+
+  var cur=CENTER, target=CENTER, shown=-1, lastMove=0, moved=false;
+  var canHover=window.matchMedia('(hover: hover)').matches;
+
+  function draw(k,force){
+    if(k===shown && !force) return;
+    var j=k;
+    if(!loaded[j]){ var best=-1; for(var s=0;s<N;s++){ if(loaded[s] && (best<0 || Math.abs(s-k)<Math.abs(best-k))) best=s; } if(best<0) return; j=best; }
+    ctx.drawImage(frames[j],0,0,cv.width,cv.height); shown=k;
+  }
+  function clamp(v){return v<0?0:v>1?1:v}
+  function updateLogos(set,amt){
+    var step=0.6/set.length;
+    for(var i=0;i<set.length;i++){
+      var r=clamp((amt-(0.2+i*step))/0.2), e=r*r*(3-2*r), o=set[i];
+      var off=(1-e)*2.2;
+      o.el.style.opacity=e.toFixed(3);
+      o.el.style.transform='translate(-50%,-50%) translate('+(o.ux*off).toFixed(3)+'cqw,'+(o.uy*off).toFixed(3)+'cqw) scale('+(0.82+0.18*e).toFixed(3)+')';
+    }
+  }
+  function setFromX(nx){
+    var dz=0.06, a=Math.abs(nx), t=a<dz?0:Math.min(1,(a-dz)/(0.9-dz));
+    t=t*Math.sign(nx);
+    target = t<0 ? CENTER + t*CENTER : CENTER + t*(N-1-CENTER);
+  }
+  function onMove(e){
+    var x=e.clientX; if(x==null) return;
+    setFromX(x/window.innerWidth*2-1);
+    lastMove=performance.now();
+    if(!moved){moved=true; var h=document.getElementById('hint'); h.style.opacity='0';}
+  }
+  window.addEventListener('pointermove',onMove,{passive:true});
+  window.addEventListener('pointerdown',onMove,{passive:true});
+  document.addEventListener('mouseleave',function(){target=CENTER;});
+  window.addEventListener('blur',function(){target=CENTER;});
+
+  function auto(now){
+    var T=9000, p=(now%T)/T, v;
+    if(p<0.12) v=0; else if(p<0.40) v=-Math.sin((p-0.12)/0.28*Math.PI);
+    else if(p<0.52) v=0; else if(p<0.80) v=Math.sin((p-0.52)/0.28*Math.PI); else v=0;
+    target = v<0 ? CENTER + v*CENTER : CENTER + v*(N-1-CENTER);
+  }
+
+  function tick(now){
+    var idle = now-lastMove > (canHover ? 6000 : 4000);
+    if(idle && (moved || !canHover)) auto(now);
+    cur += (target-cur)*0.12;
+    if(Math.abs(target-cur)<0.01) cur=target;
+    var k=Math.round(cur); if(k<0)k=0; if(k>N-1)k=N-1;
+    draw(k);
+    updateLogos(leftSet, cur<CENTER ? (CENTER-cur)/CENTER : 0);
+    updateLogos(rightSet, cur>CENTER ? (cur-CENTER)/(N-1-CENTER) : 0);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
