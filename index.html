@@ -24,6 +24,7 @@
   .chip img{width:56%;height:56%;object-fit:contain}
   .name{position:absolute;top:calc(100% + .55cqw);left:50%;transform:translateX(-50%);white-space:nowrap;
     color:rgba(255,255,255,.85);font-size:max(10px,.95cqw);letter-spacing:.02em}
+  @media (hover:none) and (pointer:coarse) and (max-width:950px){ .name{display:none} }
   .hint{position:absolute;z-index:5;left:50%;bottom:16px;transform:translateX(-50%);color:rgba(255,255,255,.75);
     font-size:13px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);
     padding:6px 14px;border-radius:20px;transition:opacity .8s}
