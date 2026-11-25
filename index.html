@@ -75,8 +75,13 @@
   if(HI) document.getElementById('bgimg').src='bg2.jpg';
   var frames=[], loaded=[];
   for(var i=0;i<N;i++){(function(k){
-    var im=new Image(); im.onload=function(){loaded[k]=true; if(k===CENTER) draw(CENTER,true);};
-    im.src=DIR+String(k).padStart(3,'0')+'.webp'; frames[k]=im;})(i);}
+    var im=new Image(); im.decoding='async';
+    im.onload=function(){
+      function done(b){ frames[k]=b; loaded[k]=true; if(k===CENTER) draw(CENTER,true); }
+      if(window.createImageBitmap){ createImageBitmap(im).then(done,function(){ (im.decode?im.decode():Promise.resolve()).then(function(){done(im);}); }); }
+      else { (im.decode?im.decode():Promise.resolve()).then(function(){done(im);},function(){done(im);}); }
+    };
+    im.src=DIR+String(k).padStart(3,'0')+'.webp'; frames[k]=null;})(i);}
 
   var HX=962, HY=355;
   var LEFT=[
@@ -99,14 +104,18 @@
   var cur=CENTER, target=CENTER, shown=-1, lastMove=0, moved=false;
   var canHover=window.matchMedia('(hover: hover)').matches;
 
-  function draw(k,force){
-    if(k===shown && !force) return;
-    var j=k;
-    if(!loaded[j]){ var best=-1; for(var s=0;s<N;s++){ if(loaded[s] && (best<0 || Math.abs(s-k)<Math.abs(best-k))) best=s; } if(best<0) return; j=best; }
-    ctx.drawImage(frames[j],0,0,cv.width,cv.height); shown=k;
+  function nearest(k){ if(loaded[k]) return k; var best=-1; for(var s=0;s<N;s++){ if(loaded[s] && (best<0 || Math.abs(s-k)<Math.abs(best-k))) best=s; } return best; }
+  function draw(v,force){
+    if(!force && Math.abs(v-shown)<0.004) return;
+    var k0=Math.floor(v), f=v-k0; if(k0>=N-1){k0=N-1; f=0;}
+    var a=nearest(k0); if(a<0) return;
+    ctx.globalAlpha=1; ctx.drawImage(frames[a],0,0,cv.width,cv.height);
+    if(f>0.02 && loaded[k0+1]){ ctx.globalAlpha=f; ctx.drawImage(frames[k0+1],0,0,cv.width,cv.height); ctx.globalAlpha=1; }
+    shown=v;
   }
   function clamp(v){return v<0?0:v>1?1:v}
   function updateLogos(set,amt){
+    if(set._last!==undefined && Math.abs(set._last-amt)<0.001) return; set._last=amt;
     var step=0.6/set.length;
     for(var i=0;i<set.length;i++){
       var r=clamp((amt-(0.2+i*step))/0.2), e=r*r*(3-2*r), o=set[i];
@@ -138,13 +147,15 @@
     target = v<0 ? CENTER + v*CENTER : CENTER + v*(N-1-CENTER);
   }
 
+  var last=0;
   function tick(now){
+    var dt=last?Math.min(64,now-last):16.7; last=now;
     var idle = now-lastMove > (canHover ? 6000 : 4000);
     if(idle && (moved || !canHover)) auto(now);
-    cur += (target-cur)*0.12;
-    if(Math.abs(target-cur)<0.01) cur=target;
-    var k=Math.round(cur); if(k<0)k=0; if(k>N-1)k=N-1;
-    draw(k);
+    cur += (target-cur)*(1-Math.exp(-dt/110));
+    if(Math.abs(target-cur)<0.005) cur=target;
+    if(cur<0)cur=0; if(cur>N-1)cur=N-1;
+    draw(cur);
     updateLogos(leftSet, cur<CENTER ? (CENTER-cur)/CENTER : 0);
     updateLogos(rightSet, cur>CENTER ? (cur-CENTER)/(N-1-CENTER) : 0);
     requestAnimationFrame(tick);
